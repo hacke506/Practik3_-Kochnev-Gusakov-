@@ -1,0 +1,6 @@
+@Practik3__Kochnev_Gusakov__HostAddress = http://localhost:5238
+
+GET {{Practik3__Kochnev_Gusakov__HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
