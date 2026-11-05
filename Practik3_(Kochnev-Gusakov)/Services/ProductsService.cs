@@ -62,5 +62,36 @@ namespace Practik3__Kochnev_Gusakov_.Services
                 })
                 .ToListAsync();
         }
+        // 3. Изменение количества товара определённого размера менеджером
+        public async Task<bool> UpdateSizeStockAsync(int productId, int sizeId, int newQuantity)
+        {
+            // Ищем нужный размер у конкретного товара
+            var size = await _context.ClothingSizes
+                .FirstOrDefaultAsync(s => s.Id == sizeId && s.ProductId == productId);
+
+            if (size == null)
+            {
+                return false; // Если такой размер или товар не найдены
+            }
+
+            size.StockQuantity = newQuantity; // Обновляем остаток
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        // 4. Убрать или вернуть товар в продажу (изменение доступности)
+        public async Task<bool> ToggleProductAvailabilityAsync(int id, bool isAvailable)
+        {
+            var product = await _context.Products.FindAsync(id);
+            if (product == null)
+            {
+                return false; // Товар не найден
+            }
+
+            product.IsAvailable = isAvailable; // Меняем флаг доступности в БД
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
     }
 }
