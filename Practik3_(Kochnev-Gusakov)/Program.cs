@@ -1,6 +1,11 @@
+using Microsoft.EntityFrameworkCore;
+using Practik3__Kochnev_Gusakov_.Models;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.Services.AddDbContext<Pr3MagazContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 var app = builder.Build();
 
