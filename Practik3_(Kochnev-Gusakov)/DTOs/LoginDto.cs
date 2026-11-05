@@ -8,6 +8,6 @@ namespace Practik3__Kochnev_Gusakov_.DTOs
         public string Login { get; set; } = null!;
 
         [Required(ErrorMessage = "Введите пароль")]
-        public int Password { get; set; } = null!;
+        public string Password { get; set; } = null!;
     }
 }
