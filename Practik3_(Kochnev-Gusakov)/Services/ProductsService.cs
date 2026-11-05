@@ -2,7 +2,7 @@
 using Practik3__Kochnev_Gusakov_.DTOs;
 using Practik3__Kochnev_Gusakov_.Models;
 
-namespace Practik3_Kochnev_Gusakov.Services
+namespace Practik3__Kochnev_Gusakov_.Services
 {
     public class ProductsService
     {
