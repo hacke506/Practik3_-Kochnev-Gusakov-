@@ -1,14 +1,14 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Practik3__Kochnev_Gusakov_.DTOs;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Practik3__Kochnev_Gusakov_.Services;
+using Practik3__Kochnev_Gusakov_.DTOs;
 using System.Security.Claims;
 
 namespace Practik3__Kochnev_Gusakov_.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize] // Заказы доступны только для авторизованных пользователей
+    [Authorize]
     public class OrdersController : ControllerBase
     {
         private readonly OrdersService _ordersService;
@@ -18,61 +18,61 @@ namespace Practik3__Kochnev_Gusakov_.Controllers
             _ordersService = ordersService;
         }
 
-        // 1. POST: /api/orders — Создание нового заказа
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] CreateOrderDto dto)
+        public async Task<ActionResult<OrderDto>> Create([FromBody] CreateOrderDto dto)
         {
-            // Извлекаем ID текущего пользователя из JWT-токена, который сделал Участник №1
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null)
             {
-                return Unauthorized("Пользователь не авторизован или токен некорректен.");
+                return Unauthorized("Пользователь не идентифицирован или токен некорректен.");
             }
 
-            var order = await _ordersService.CreateOrderAsync(userId, dto);
+            int customerId = int.Parse(userIdClaim.Value);
+
+            var order = await _ordersService.CreateOrderAsync(customerId, dto);
             if (order == null)
             {
-                return BadRequest("Не удалось оформить заказ. Проверьте наличие товаров на складе.");
+                return BadRequest("Не удалось оформить заказ. Проверьте остатки товаров на складе.");
             }
 
             return Ok(order);
         }
 
-        // 2. GET: /api/orders/customer/{customerId} — Получение заказов конкретного покупателя
         [HttpGet("customer/{customerId}")]
         public async Task<ActionResult<List<OrderDto>>> GetCustomerOrders(int customerId)
         {
-            // Безопасность: обычный пользователь может смотреть ТОЛЬКО свои заказы.
-            // Менеджер может смотреть заказы любого клиента.
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var userRoleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            var userRoleClaim = User.FindFirst(ClaimTypes.Role);
 
-            if (userRoleClaim != "Manager" && userIdClaim != customerId.ToString())
+            if (userIdClaim == null) return Unauthorized();
+
+            int currentUserId = int.Parse(userIdClaim.Value);
+            string currentRole = userRoleClaim?.Value ?? "User";
+
+            if (currentUserId != customerId && currentRole != "Manager")
             {
-                return Forbid(); // Возвращаем 403 Forbidden, если обычный юзер лезет в чужие заказы
+                return Forbid();
             }
 
             var orders = await _ordersService.GetCustomerOrdersAsync(customerId);
             return Ok(orders);
         }
 
-        // 3. GET: /api/orders — Получение заказов по статусу (Только для Менеджера)
-        [HttpGet]
-        [Authorize(Roles = "Manager")] // Доступ строго для роли Manager
+        [HttpGet("status")]
+        [Authorize(Roles = "Manager")]
         public async Task<ActionResult<List<OrderDto>>> GetByStatus([FromQuery] string status)
         {
             if (string.IsNullOrWhiteSpace(status))
             {
-                return BadRequest("Статус не может быть пустым.");
+                return BadRequest("Статус заказа не указан.");
             }
 
             var orders = await _ordersService.GetOrdersByStatusAsync(status);
             return Ok(orders);
         }
 
-        // 4. PATCH: /api/orders/{id}/status — Изменение статуса заказа менеджером
         [HttpPatch("{id}/status")]
-        [Authorize(Roles = "Manager")] // Доступ строго для роли Manager
+        [Authorize(Roles = "Manager")]
         public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateOrderStatusDto dto)
         {
             var result = await _ordersService.UpdateOrderStatusAsync(id, dto.Status);

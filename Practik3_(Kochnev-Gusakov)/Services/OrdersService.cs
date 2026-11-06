@@ -13,7 +13,6 @@ namespace Practik3__Kochnev_Gusakov_.Services
             _context = context;
         }
 
-        // 1. Создание нового заказа с проверкой остатков
         public async Task<OrderDto?> CreateOrderAsync(int customerId, CreateOrderDto dto)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -35,7 +34,7 @@ namespace Practik3__Kochnev_Gusakov_.Services
                 {
                     var product = await _context.Products.FindAsync(itemDto.ProductId);
                     if (product == null || product.IsAvailable != true)
-                        throw new Exception($"Товар с ID {itemDto.ProductId} недоступен.");
+                        throw new Exception($"Товар недоступен.");
 
                     var size = await _context.ClothingSizes
                         .FirstOrDefaultAsync(s => s.Id == itemDto.SizeId && s.ProductId == itemDto.ProductId);
@@ -64,7 +63,7 @@ namespace Practik3__Kochnev_Gusakov_.Services
                         SizeId = itemDto.SizeId,
                         SizeLabel = size.LetterSize ?? "",
                         Quantity = itemDto.Quantity,
-                        PriceAtPurchase = product.Price // В DTO цену отдаем из карточки товара
+                        PriceAtPurchase = product.Price
                     });
                 }
 
@@ -87,7 +86,6 @@ namespace Practik3__Kochnev_Gusakov_.Services
             }
         }
 
-        // 2. Получение заказов конкретного покупателя
         public async Task<List<OrderDto>> GetCustomerOrdersAsync(int customerId)
         {
             return await GetOrdersQuery()
@@ -95,7 +93,6 @@ namespace Practik3__Kochnev_Gusakov_.Services
                 .ToListAsync();
         }
 
-        // 3. Получение заказов по статусу
         public async Task<List<OrderDto>> GetOrdersByStatusAsync(string status)
         {
             return await GetOrdersQuery()
@@ -103,7 +100,6 @@ namespace Practik3__Kochnev_Gusakov_.Services
                 .ToListAsync();
         }
 
-        // 4. Изменение статуса заказа менеджером
         public async Task<bool> UpdateOrderStatusAsync(int orderId, string newStatus)
         {
             var order = await _context.Orders.FindAsync(orderId);
@@ -131,7 +127,7 @@ namespace Practik3__Kochnev_Gusakov_.Services
                         SizeId = oi.SizeId,
                         SizeLabel = oi.Size != null ? (oi.Size.LetterSize ?? "") : "",
                         Quantity = oi.Quantity,
-                        PriceAtPurchase = oi.Product != null ? oi.Product.Price : 0m // Берем цену из связанного товара
+                        PriceAtPurchase = oi.Product != null ? oi.Product.Price : 0m
                     }).ToList()
                 });
         }

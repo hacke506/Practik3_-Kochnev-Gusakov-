@@ -1,83 +1,50 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Practik3__Kochnev_Gusakov_.DTOs;
+using Practik3__Kochnev_Gusakov_.Models;
+using Practik3__Kochnev_Gusakov_.Services;
 
 namespace Practik3__Kochnev_Gusakov_.Controllers
 {
-    public class AuthController : Controller
+    [Route("api/[controller]")]
+    [ApiController]
+    public class AuthController : ControllerBase
     {
-        // GET: AuthController
-        public ActionResult Index()
+        private readonly AuthService _authService;
+
+        public AuthController(AuthService authService)
         {
-            return View();
+            _authService = authService;
         }
 
-        // GET: AuthController/Details/5
-        public ActionResult Details(int id)
+        // 1. POST: /api/auth/register — Регистрация нового покупателя
+        [HttpPost("register")]
+        public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
-            return View();
-        }
+            if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        // GET: AuthController/Create
-        public ActionResult Create()
-        {
-            return View();
-        }
-
-        // POST: AuthController/Create
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult Create(IFormCollection collection)
-        {
-            try
+            var result = await _authService.RegisterAsync(dto);
+            if (!result.Success)
             {
-                return RedirectToAction(nameof(Index));
+                return BadRequest(result.ErrorMessage);
             }
-            catch
-            {
-                return View();
-            }
+
+            return Ok(new { message = "Регистрация успешно завершена!" });
         }
 
-        // GET: AuthController/Edit/5
-        public ActionResult Edit(int id)
+        // 2. POST: /api/auth/login — Вход и выдача JWT-токена
+        [HttpPost("login")]
+        public async Task<ActionResult<AuthResponseDto>> Login([FromBody] LoginDto dto)
         {
-            return View();
-        }
+            if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        // POST: AuthController/Edit/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult Edit(int id, IFormCollection collection)
-        {
-            try
+            var response = await _authService.LoginAsync(dto);
+            if (response == null)
             {
-                return RedirectToAction(nameof(Index));
+                return BadRequest("Неверный логин или пароль.");
             }
-            catch
-            {
-                return View();
-            }
-        }
 
-        // GET: AuthController/Delete/5
-        public ActionResult Delete(int id)
-        {
-            return View();
-        }
-
-        // POST: AuthController/Delete/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult Delete(int id, IFormCollection collection)
-        {
-            try
-            {
-                return RedirectToAction(nameof(Index));
-            }
-            catch
-            {
-                return View();
-            }
+            return Ok(response);
         }
     }
 }

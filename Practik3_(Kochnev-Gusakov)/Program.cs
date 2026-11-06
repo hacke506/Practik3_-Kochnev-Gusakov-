@@ -1,37 +1,87 @@
 using Microsoft.EntityFrameworkCore;
 using Practik3__Kochnev_Gusakov_.Models;
+using Practik3__Kochnev_Gusakov_.Services;
+using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// 1. Подключение базы данных SQL Server
 builder.Services.AddDbContext<Pr3MagazContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-var app = builder.Build();
+// 2. Регистрация сервисов Авторизации (Модуль напарника)
+builder.Services.AddScoped<JwtService>();
+builder.Services.AddScoped<AuthService>();
 
-// Configure the HTTP request pipeline.
+// 3. Регистрация сервисов Товаров и Заказов (Твой модуль)
+builder.Services.AddScoped<ProductsService>();
+builder.Services.AddScoped<OrdersService>();
 
-var summaries = new[]
+// 4. Настройка JWT-безопасности (Секретный ключ совпадает с JwtService твоего напарника)
+var secretKey = "SuperSecretSecureKeyForMyShopApplication123!!!";
+var key = Encoding.UTF8.GetBytes(secretKey);
+
+builder.Services.AddAuthentication(options =>
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
 {
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
+    options.RequireHttpsMetadata = false;
+    options.SaveToken = true;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(key),
+        ValidateIssuer = false,
+        ValidateAudience = false,
+        ValidateLifetime = true
+    };
 });
 
-app.Run();
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
 
-internal record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
+// 5. Настройка Swagger с кнопкой добавления JWT-токена (Замочек)
+builder.Services.AddSwaggerGen(c =>
 {
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Practik 3 Shop API", Version = "v1" });
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "Введите JWT токен в формате: Bearer {ваш_токен}",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+            },
+            new string[] {}
+        }
+    });
+});
+
+var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
+
+// 6. Порядок включения защиты 
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
+
+app.Run();
