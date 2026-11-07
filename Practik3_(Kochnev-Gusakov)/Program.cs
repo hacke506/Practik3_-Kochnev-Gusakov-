@@ -20,9 +20,14 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ProductsService>();
 builder.Services.AddScoped<OrdersService>();
 
-// 4. Настройка JWT-безопасности (Секретный ключ совпадает с JwtService твоего напарника)
-var secretKey = "SuperSecretSecureKeyForMyShopApplication123!!!";
-var key = Encoding.UTF8.GetBytes(secretKey);
+// 4. Настройка JWT-безопасности (Полное зеркало логики JwtService твоего напарника)
+var keySection = builder.Configuration.GetSection("Jwt:Key").Value;
+if (string.IsNullOrEmpty(keySection))
+{
+    // Запасной ключ на случай отсутствия записи в appsettings.json
+    keySection = "SuperSecretLongKeyThatHasAtLeast32Characters!";
+}
+var key = Encoding.UTF8.GetBytes(keySection);
 
 builder.Services.AddAuthentication(options =>
 {
@@ -37,9 +42,17 @@ builder.Services.AddAuthentication(options =>
     {
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(key),
-        ValidateIssuer = false,
-        ValidateAudience = false,
-        ValidateLifetime = true
+
+        // Включаем валидацию издателя (Issuer) в соответствии с JwtService
+        ValidateIssuer = true,
+        ValidIssuer = builder.Configuration.GetSection("Jwt:Issuer").Value ?? "MyApi",
+
+        // Включаем валидацию потребителя (Audience) в соответствии с JwtService
+        ValidateAudience = true,
+        ValidAudience = builder.Configuration.GetSection("Jwt:Audience").Value ?? "MyApps",
+
+        ValidateLifetime = true,
+        ClockSkew = TimeSpan.Zero // Убираем задержку проверки времени жизни токена
     };
 });
 
@@ -78,7 +91,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// 6. Порядок включения защиты 
+// 6. Порядок включения middlewares (Сначала проверка КТО ты, затем ЧТО тебе можно)
 app.UseAuthentication();
 app.UseAuthorization();
 
